@@ -4,6 +4,7 @@ services:
   app: 
     image: "oven/bun" 
     container_name: weather-api-v1 
+    restart: always
     command: "bun run app.ts" 
     volumes: 
       - .:/app

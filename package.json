@@ -5,12 +5,12 @@
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "ioredis": "^5.4.1",
     "json-diff": "^1.0.6",
     "moment-timezone": "^0.5.46",
     "nodemon": "^3.1.7",
-    "tsx": "^4.19.2"
+    "tsx": "^4.23.15"
   },
   "scripts": {
     "start": "bun run app.ts",

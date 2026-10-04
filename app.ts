@@ -19,7 +19,7 @@ function createWorker(workerId: string, taskName: string) {
 
 export let IS_REDIS_HEALTHY = false;
 const corsOptions = {
-    origin: 'https://weather.wliafdew.dev', 
+    origin: ['https://weather.wliafdew.dev', 'http://localhost:3000'], 
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', 
     credentials: true, 
 };
