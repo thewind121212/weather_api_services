@@ -60,7 +60,6 @@ const getAllKeyValueMatchPatternRedis = async (pattern: string) => {
     const keyValuePairs: {
         key: string,
         value: {
-            locationId: string,
             longitude: number,
             latitude: number,
             timezone: string

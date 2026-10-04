@@ -34,6 +34,10 @@ export const replace = (dataOrigin: any, newData: any) => {
 
 }
 
+// cache by where, not by a client-supplied id: ~1 km grid + timezone
+export const geoKey = (lat: number, lon: number, tz: string) =>
+    `${lat.toFixed(2)},${lon.toFixed(2)}:${tz}`;
+
 export const checkTime = (oldTimestamp: number, greaterThanMinute: number): boolean => {
     const currentTimestamp = Date.now();
     const timeDifference = currentTimestamp - oldTimestamp;

@@ -10,6 +10,7 @@ import { redisClient } from './helper/redis';
 import { revalidateRedis } from './helper/revalidateRedis';
 import { geoFetcher } from './helper/fetcher';
 import { moonPhaseServices } from './services/moonPhase.services';
+import { geoKey } from './helper/utils';
 
 
 function createWorker(workerId: string, taskName: string) {
@@ -38,6 +39,17 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
+
+
+// validate the place first, then remember it for the revalidate worker.
+// keyed by place (not the client's locationId) and expiring, so junk or
+// spoofed ids can't pin a location to be refreshed forever
+const rememberLocation = async (lat: number, lon: number, tz: string) => {
+    if (!(Math.abs(lat) <= 90 && Math.abs(lon) <= 180) || !moment.tz.zone(tz)) return false;
+    // EX 1 day: the worker stops refreshing places nobody asked for
+    await redisClient.set(`location:${geoKey(lat, lon, tz)}`, JSON.stringify({ latitude: lat, longitude: lon, timezone: tz }), 'EX', 60 * 60 * 24);
+    return true;
+};
 
 
 app.post('/geo_search', async (req, res) => {
@@ -76,18 +88,6 @@ app.get('/weather', async (req, res) => {
     let timezone = (timeZoneRequest ? timeZoneRequest : 'Asia/Ho_Chi_Minh') as string
 
 
-    const data = await redisClient.get(`location:${quickRetriveId as string}`);
-    if (!data) {
-        const locationData = {
-            locationId: locationId as string,
-            longitude: Number(longitude),
-            latitude: Number(latitude),
-            timezone: timezone as string
-        }
-        await redisClient.set(`location:${locationId}`, JSON.stringify(locationData));
-    }
-
-
     if (!isQuickRetriveIdValid && quickRetriveId) {
         res.status(404).send({
             message: 'Invalid Request Please Provide The Valid QuickRetriveId or try to fetch with out it',
@@ -97,7 +97,8 @@ app.get('/weather', async (req, res) => {
         return
     }
 
-    if (!longitude || !latitude || !locationId) {
+    if (!longitude || !latitude || !locationId
+        || !await rememberLocation(Number(latitude), Number(longitude), (manualTimezone || timezone) as string)) {
         res.status(404).send({
             message: 'Invalid Request',
             current: moment().tz(timezone).format('HH:mm:ss'),
@@ -145,18 +146,6 @@ app.get('/air-quality', async (req, res) => {
     let timezone = (timeZoneRequest ? timeZoneRequest : 'Asia/Ho_Chi_Minh') as string
 
 
-    const data = await redisClient.get(`location:${quickRetriveId as string}`);
-    if (!data) {
-        const locationData = {
-            locationId: locationId as string,
-            longitude: Number(longitude),
-            latitude: Number(latitude),
-            timezone: timezone as string
-        }
-        await redisClient.set(`location:${locationId}`, JSON.stringify(locationData));
-    }
-
-
     if (!isQuickRetriveIdValid && quickRetriveId) {
         res.status(404).send({
             message: 'Invalid Request Please Provide The Valid QuickRetriveId or try to fetch with out it',
@@ -165,7 +154,8 @@ app.get('/air-quality', async (req, res) => {
         return
     }
 
-    if (!longitude || !latitude || !locationId) {
+    if (!longitude || !latitude || !locationId
+        || !await rememberLocation(Number(latitude), Number(longitude), (manualTimezone || timezone) as string)) {
         res.status(404).send({
             message: 'Invalid Request',
             current: moment().tz(timezone).format('HH:mm:ss'),
@@ -208,18 +198,6 @@ app.get('/moon-phase', async (req, res) => {
     let timezone = (timeZoneRequest ? timeZoneRequest : 'Asia/Ho_Chi_Minh') as string
 
 
-    const data = await redisClient.get(`location:${quickRetriveId as string}`);
-    if (!data) {
-        const locationData = {
-            locationId: locationId as string,
-            longitude: Number(longitude),
-            latitude: Number(latitude),
-            timezone: timezone as string
-        }
-        await redisClient.set(`location:${locationId}`, JSON.stringify(locationData));
-    }
-
-
     if (!isQuickRetriveIdValid && quickRetriveId) {
         res.status(404).send({
             message: 'Invalid Request Please Provide The Valid QuickRetriveId or try to fetch with out it',
@@ -229,7 +207,8 @@ app.get('/moon-phase', async (req, res) => {
         return
     }
 
-    if (!longitude || !latitude || !locationId) {
+    if (!longitude || !latitude || !locationId
+        || !await rememberLocation(Number(latitude), Number(longitude), (manualTimezone || timezone) as string)) {
         res.status(404).send({
             message: 'Invalid Request',
             current: moment().tz(timezone).format('HH:mm:ss'),

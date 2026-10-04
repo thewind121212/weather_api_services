@@ -2,7 +2,7 @@
 import { weatherFetcher } from '../helper/fetcher';
 import { IS_REDIS_HEALTHY } from '../app';
 import { redisClient } from '../helper/redis';
-import { replace, isCurrentDayAfterTimestamp } from '../helper/utils';
+import { replace, isCurrentDayAfterTimestamp, geoKey } from '../helper/utils';
 import { WeatherData } from '../types/weather';
 
 
@@ -30,13 +30,15 @@ export const weatherService = async (isGetFromCache: boolean = true,
 
 
 
+    const key = `${KEY_REDIS_PREFIX}:${geoKey(latitude, longitude, timezone)}`;
+
     if (isGetFromCache && IS_REDIS_HEALTHY) {
-        const redisRetrive = await redisClient.get(KEY_REDIS_PREFIX + `:${locationId}`);
+        const redisRetrive = await redisClient.get(key);
         if (redisRetrive) {
-            const cacheTimeStamps = JSON.parse(redisRetrive).timestamp;
-            const isPastDay = isCurrentDayAfterTimestamp(cacheTimeStamps, timezone);
+            const cached = JSON.parse(redisRetrive);
+            const isPastDay = isCurrentDayAfterTimestamp(cached.timestamp, timezone);
             if (!isPastDay) {
-                return JSON.parse(redisRetrive);
+                return { ...cached, locationId };
             }
         }
     }
@@ -70,12 +72,11 @@ export const weatherService = async (isGetFromCache: boolean = true,
 
     replace(homeServer, openMeteo);
     homeServer.timestamp = Date.now();
-    homeServer.locationId = locationId;
 
     if (IS_REDIS_HEALTHY) {
-        redisClient.set(KEY_REDIS_PREFIX + `:${locationId}`, JSON.stringify(homeServer), 'EX', TTL_REDIS);
+        redisClient.set(key, JSON.stringify(homeServer), 'EX', TTL_REDIS);
     }
 
-    return homeServer
+    return { ...homeServer, locationId }
 
 }

@@ -3,7 +3,7 @@
 import { moonPhaseFetcher } from '../helper/fetcher';
 import { IS_REDIS_HEALTHY } from '../app';
 import { redisClient } from '../helper/redis';
-import { getMonthRangeInTimezone, calculateRedisTTL, calcMoonPhase } from '../helper/utils';
+import { getMonthRangeInTimezone, calculateRedisTTL, calcMoonPhase, geoKey } from '../helper/utils';
 import { AstronomyData, Cell, MoonReturn, responseMoonPhaseType } from '../types/moonPhase';
 
 
@@ -28,9 +28,11 @@ export const moonPhaseServices = async (isGetFromCache: boolean = true,
 
 
 
+    const key = `${KEY_REDIS_PREFIX}:${geoKey(latitude, longitude, timezone)}`;
+
     if (isGetFromCache && IS_REDIS_HEALTHY) {
 
-        const redisRetrive = await redisClient.get(KEY_REDIS_PREFIX + `:${locationId}`);
+        const redisRetrive = await redisClient.get(key);
         if (redisRetrive) {
             return JSON.parse(redisRetrive)
         }
@@ -71,7 +73,7 @@ export const moonPhaseServices = async (isGetFromCache: boolean = true,
     const TTL = calculateRedisTTL(endDayOfMonth, timezone);
 
     if (IS_REDIS_HEALTHY) {
-        redisClient.set(KEY_REDIS_PREFIX + `:${locationId}`, JSON.stringify(moonReturn), 'EX', Number(TTL));
+        redisClient.set(key, JSON.stringify(moonReturn), 'EX', Number(TTL));
     }
 
     return moonReturn
