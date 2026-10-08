@@ -1,3 +1,5 @@
+import type { StationSource } from '../helper/metar';
+
 
 
 
@@ -76,6 +78,7 @@ interface CurrentWeatherData {
   weather_code: number;
   cloud_cover: number;
   wind_speed_10m: number;
+  source?: StationSource; // set when current is the Tan Son Nhat observation (helper/metar.ts)
 }
 
 

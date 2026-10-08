@@ -3,6 +3,7 @@ import { weatherFetcher } from '../helper/fetcher';
 import { IS_REDIS_HEALTHY } from '../app';
 import { redisClient } from '../helper/redis';
 import { replace, isCurrentDayAfterTimestamp, geoKey } from '../helper/utils';
+import { stationCurrent } from '../helper/metar';
 import { WeatherData } from '../types/weather';
 
 
@@ -16,7 +17,7 @@ const openMeteoUrl = process.env.OPEN_MEOTEO_URL || 'https://api.open-meteo.com'
 const homeServerUrl = process.env.HOME_SERVER_URL || 'http://localhost:8080';
 
 const KEY_REDIS_PREFIX = 'weather';
-const TTL_REDIS = 60 * 30;
+const TTL_REDIS = 60 * 5; // Open-Meteo's current is 15-minutely, the airport reports every 30 min
 
 export const weatherService = async (isGetFromCache: boolean = true,
     locationId: string = DEFAULT_LOCATION_ID,
@@ -71,6 +72,7 @@ export const weatherService = async (isGetFromCache: boolean = true,
     }
 
     replace(homeServer, openMeteo);
+    await stationCurrent(homeServer.current, fetcherData.latitude!, fetcherData.longitude!);
     homeServer.timestamp = Date.now();
 
     if (IS_REDIS_HEALTHY) {
