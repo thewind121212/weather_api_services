@@ -8,6 +8,7 @@ const STATION = { id: 'VVTS', name: 'Tan Son Nhat', lat: 10.8188, lon: 106.652 }
 const RADIUS_KM = 30;           // the city; farther out the model is the better guess
 const MAX_AGE_MIN = 90;         // an older report (station or feed down) is ignored
 const CACHE_MS = 5 * 60 * 1000;
+const RETRY_MS = 60 * 1000; // after a failed fetch, retry sooner
 
 export interface Metar {
     obsTime: number;            // epoch seconds
@@ -80,22 +81,22 @@ const apparent = (t: number, rh: number, windKmh: number): number => {
 
 const kmh = (kt: number) => Math.round(kt * 1.852 * 10) / 10;
 
-let cache: { at: number; metar: Metar | null } | null = null;
+let cache: { at: number; ok: boolean; metar: Metar | null } | null = null;
 
 const latestMetar = async (): Promise<Metar | null> => {
-    if (cache && Date.now() - cache.at < CACHE_MS) return cache.metar;
-    let metar: Metar | null = null;
+    if (cache && Date.now() - cache.at < (cache.ok ? CACHE_MS : RETRY_MS)) return cache.metar;
     try {
         const { data } = await axios.get('https://aviationweather.gov/api/data/metar', {
             params: { ids: STATION.id, format: 'json' },
             timeout: 5000,
         });
-        metar = Array.isArray(data) && data[0] ? data[0] : null;
+        cache = { at: Date.now(), ok: true, metar: Array.isArray(data) && data[0] ? data[0] : null };
     } catch (error) {
         console.error('METAR fetch failed:', (error as Error).message);
+        // keep the last good report (applyStation still drops it once it's over MAX_AGE_MIN old)
+        cache = { at: Date.now(), ok: false, metar: cache?.metar ?? null };
     }
-    cache = { at: Date.now(), metar };
-    return metar;
+    return cache.metar;
 };
 
 // Overwrites `current` with the station's observation; returns false (current untouched) when the location is
